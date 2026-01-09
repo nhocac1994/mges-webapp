@@ -27,12 +27,16 @@ export default function LoginPage() {
 
     try {
       console.log('🔐 Attempting login...')
-      const response = await api.post('/auth/login', formData)
+      const response: any = await api.post('/auth/login', formData)
       console.log('📥 Login response:', response)
       
-      if (response.success && response.data) {
+      // Response interceptor đã extract response.data, nên response đã là data rồi
+      if (response && (response.token || response.data?.token)) {
+        const token = response.token || response.data?.token
+        const user = response.user || response.data?.user
+        
         // Cập nhật AuthContext (sẽ tự động lưu vào localStorage)
-        login(response.data.token, response.data.user)
+        login(token, user)
         
         console.log('✅ Login successful, redirecting...')
         
@@ -43,7 +47,7 @@ export default function LoginPage() {
         }, 100)
       } else {
         console.error('❌ Login failed:', response)
-        setError(response.message || 'Login failed')
+        setError(response?.message || 'Login failed')
       }
     } catch (error: any) {
       console.error('❌ Login error:', error)
