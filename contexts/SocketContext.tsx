@@ -37,7 +37,15 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
 
     // Lấy API URL từ environment variable
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:55777'
+    // Trên Vercel, sử dụng NEXT_PUBLIC_API_URL từ env
+    // Nếu không có, không kết nối socket (chỉ dùng cho local dev)
+    const API_URL = process.env.NEXT_PUBLIC_API_URL
+    
+    // Chỉ kết nối socket nếu có API_URL (không kết nối trên Vercel nếu chưa config)
+    if (!API_URL || API_URL.includes('localhost')) {
+      console.log('⚠️ Socket.IO: API_URL not configured or is localhost, skipping socket connection')
+      return
+    }
     
     // Tạo socket connection
     const newSocket = io(API_URL, {

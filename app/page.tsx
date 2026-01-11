@@ -64,8 +64,14 @@ function HomeContent() {
     try {
       setLoading(true)
       const [statsRes, issuesRes]: any[] = await Promise.all([
-        api.get('/dashboard/stats'),
-        api.get(`/issues?pageSize=50&status=${activeTab === 'pending' ? 'Pending' : activeTab === 'inprogress' ? 'In Progress' : 'Completed'}`)
+        api.get('/dashboard/stats').catch(err => {
+          console.error('Error fetching stats:', err)
+          return null
+        }),
+        api.get(`/issues?pageSize=50&status=${activeTab === 'pending' ? 'Pending' : activeTab === 'inprogress' ? 'In Progress' : 'Completed'}`).catch(err => {
+          console.error('Error fetching issues:', err)
+          return []
+        })
       ])
 
       // Stats
