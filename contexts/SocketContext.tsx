@@ -48,20 +48,21 @@ export function SocketProvider({ children }: SocketProviderProps) {
       return
     }
     
-    // Nếu đang trên HTTPS nhưng API_URL là HTTP, chỉ dùng polling (tránh Mixed Content)
-    const transports = isHTTPS && API_URL.startsWith('http://') 
-      ? ['polling'] // Chỉ dùng polling trên HTTPS với HTTP backend
-      : ['websocket', 'polling'] // Dùng cả websocket và polling cho HTTP hoặc HTTPS với HTTPS backend
+    // Nếu đang trên HTTPS nhưng API_URL là HTTP, không kết nối socket (Mixed Content policy chặn cả polling)
+    if (isHTTPS && API_URL.startsWith('http://')) {
+      console.log('⚠️ Socket.IO: Cannot connect from HTTPS page to HTTP backend (Mixed Content policy). Real-time updates disabled.')
+      console.log('💡 Tip: To enable real-time updates, configure HTTPS backend or use Next.js API routes for proxying.')
+      return
+    }
     
-    console.log(`🔌 Socket.IO: Connecting to ${API_URL} with transports: ${transports.join(', ')}`)
+    console.log(`🔌 Socket.IO: Connecting to ${API_URL}`)
     
     // Tạo socket connection
     const newSocket = io(API_URL, {
-      transports: transports,
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
-      upgrade: !isHTTPS || !API_URL.startsWith('http://'), // Không upgrade nếu HTTPS với HTTP backend
     })
 
     newSocket.on('connect', () => {
