@@ -42,24 +42,26 @@ export function SocketProvider({ children }: SocketProviderProps) {
     // Kiểm tra nếu đang chạy trên HTTPS (Vercel production)
     const isHTTPS = typeof window !== 'undefined' && window.location.protocol === 'https:'
     
-    // Nếu đang trên HTTPS nhưng API_URL là HTTP, không kết nối socket (Mixed Content error)
-    if (isHTTPS && API_URL && API_URL.startsWith('http://')) {
-      console.log('⚠️ Socket.IO: Cannot connect to HTTP WebSocket from HTTPS page. Skipping socket connection.')
-      return
-    }
-    
     // Chỉ kết nối socket nếu có API_URL và không phải localhost
     if (!API_URL || API_URL.includes('localhost')) {
       console.log('⚠️ Socket.IO: API_URL not configured or is localhost, skipping socket connection')
       return
     }
     
+    // Nếu đang trên HTTPS nhưng API_URL là HTTP, chỉ dùng polling (tránh Mixed Content)
+    const transports = isHTTPS && API_URL.startsWith('http://') 
+      ? ['polling'] // Chỉ dùng polling trên HTTPS với HTTP backend
+      : ['websocket', 'polling'] // Dùng cả websocket và polling cho HTTP hoặc HTTPS với HTTPS backend
+    
+    console.log(`🔌 Socket.IO: Connecting to ${API_URL} with transports: ${transports.join(', ')}`)
+    
     // Tạo socket connection
     const newSocket = io(API_URL, {
-      transports: ['websocket', 'polling'],
+      transports: transports,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
+      upgrade: !isHTTPS || !API_URL.startsWith('http://'), // Không upgrade nếu HTTPS với HTTP backend
     })
 
     newSocket.on('connect', () => {
