@@ -37,11 +37,18 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
 
     // Lấy API URL từ environment variable
-    // Trên Vercel, sử dụng NEXT_PUBLIC_API_URL từ env
-    // Nếu không có, không kết nối socket (chỉ dùng cho local dev)
     const API_URL = process.env.NEXT_PUBLIC_API_URL
     
-    // Chỉ kết nối socket nếu có API_URL (không kết nối trên Vercel nếu chưa config)
+    // Kiểm tra nếu đang chạy trên HTTPS (Vercel production)
+    const isHTTPS = typeof window !== 'undefined' && window.location.protocol === 'https:'
+    
+    // Nếu đang trên HTTPS nhưng API_URL là HTTP, không kết nối socket (Mixed Content error)
+    if (isHTTPS && API_URL && API_URL.startsWith('http://')) {
+      console.log('⚠️ Socket.IO: Cannot connect to HTTP WebSocket from HTTPS page. Skipping socket connection.')
+      return
+    }
+    
+    // Chỉ kết nối socket nếu có API_URL và không phải localhost
     if (!API_URL || API_URL.includes('localhost')) {
       console.log('⚠️ Socket.IO: API_URL not configured or is localhost, skipping socket connection')
       return
