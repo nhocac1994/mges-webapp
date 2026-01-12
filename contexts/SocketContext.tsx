@@ -36,11 +36,9 @@ export function SocketProvider({ children }: SocketProviderProps) {
       return
     }
 
-    // Lấy API URL từ environment variable
-    const API_URL = process.env.NEXT_PUBLIC_API_URL
-    
     // Kiểm tra nếu đang chạy trên HTTPS (Vercel production)
     const isHTTPS = typeof window !== 'undefined' && window.location.protocol === 'https:'
+    const API_URL = process.env.NEXT_PUBLIC_API_URL
     
     // Chỉ kết nối socket nếu có API_URL và không phải localhost
     if (!API_URL || API_URL.includes('localhost')) {
@@ -48,21 +46,33 @@ export function SocketProvider({ children }: SocketProviderProps) {
       return
     }
     
-    // Nếu đang trên HTTPS nhưng API_URL là HTTP, không kết nối socket (Mixed Content policy chặn cả polling)
+    // Nếu đang trên HTTPS và backend là HTTP, dùng Next.js API proxy để tránh Mixed Content
+    let socketURL: string
+    let socketPath: string = '/socket.io/'
+    
     if (isHTTPS && API_URL.startsWith('http://')) {
-      console.log('⚠️ Socket.IO: Cannot connect from HTTPS page to HTTP backend (Mixed Content policy). Real-time updates disabled.')
-      console.log('💡 Tip: To enable real-time updates, configure HTTPS backend or use Next.js API routes for proxying.')
-      return
+      // Dùng Next.js API route để proxy socket requests
+      socketURL = window.location.origin // Dùng cùng origin (Vercel HTTPS)
+      socketPath = '/api/socket'
+      console.log('🔌 Socket.IO: Using Next.js API proxy to avoid Mixed Content (HTTPS -> HTTP)')
+    } else {
+      socketURL = API_URL
+      console.log(`🔌 Socket.IO: Connecting directly to ${socketURL}`)
     }
     
-    console.log(`🔌 Socket.IO: Connecting to ${API_URL}`)
-    
     // Tạo socket connection
-    const newSocket = io(API_URL, {
-      transports: ['websocket', 'polling'],
+    // Trên HTTPS với HTTP backend, chỉ dùng polling qua proxy
+    const transports = isHTTPS && API_URL && API_URL.startsWith('http://')
+      ? ['polling'] // Chỉ polling qua Next.js proxy
+      : ['websocket', 'polling'] // Normal connection
+    
+    const newSocket = io(socketURL, {
+      transports: transports,
+      path: socketPath,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
+      upgrade: !(isHTTPS && API_URL && API_URL.startsWith('http://')), // Không upgrade nếu dùng proxy
     })
 
     newSocket.on('connect', () => {
